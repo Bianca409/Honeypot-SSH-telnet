@@ -1,0 +1,46 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: honeypot_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: honeypot_db
+      MYSQL_USER: honeypot_user
+      MYSQL_PASSWORD: honeypot_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - honeypot_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: honeypot_app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"   # Dashboard Web & API
+      - "2222:2222"   # Fake SSH (pentru cand il adauga Persoana 1)
+      - "2323:2323"   # Fake Telnet (pentru cand il adauga Persoana 1)
+    environment:
+      DB_HOST: db
+      DB_USER: honeypot_user
+      DB_PASSWORD: honeypot_pass
+      DB_NAME: honeypot_db
+    networks:
+      - honeypot_net
+
+networks:
+  honeypot_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
