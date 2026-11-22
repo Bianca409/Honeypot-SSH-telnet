@@ -5,6 +5,7 @@ from typing import Protocol
 @dataclass
 class HoneypotConfig:
     """Configurația de bază pentru serverele Honeypot (SSH și Telnet)."""
+
     host: str = "0.0.0.0"
     ssh_port: int = 2222
     telnet_port: int = 2323
@@ -13,9 +14,9 @@ class HoneypotConfig:
 
 
 class EventLogger(Protocol):
-    """
-    Contractul (interfața) pentru logarea evenimentelor.
-    Definește metodele pe care honeypot-ul le va apela pentru a trimite 
+    """Contractul (interfața) pentru logarea evenimentelor.
+
+    Definește metodele pe care honeypot-ul le va apela pentru a trimite
     datele către stocarea din src/storage/db.py.
     """
 
@@ -26,7 +27,7 @@ class EventLogger(Protocol):
         source_port: int,
         username: str,
         password: str,
-        status: str
+        status: str,
     ) -> None:
         ...
 
@@ -34,6 +35,6 @@ class EventLogger(Protocol):
         self,
         session_id: str,
         source_ip: str,
-        command: str
+        command: str,
     ) -> None:
         ...

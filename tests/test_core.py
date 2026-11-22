@@ -1,5 +1,6 @@
 from src.core.config import HoneypotConfig
 
+
 def test_honeypot_config_defaults():
     """Verifică valorile implicite pentru configurația honeypot."""
     config = HoneypotConfig()
