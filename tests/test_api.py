@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch
+
 from fastapi.testclient import TestClient
+
 from src.web.app import app
 
 client = TestClient(app)
@@ -66,4 +68,3 @@ def test_export_json_endpoint():
     assert "export_metadata" in data
     assert data["export_metadata"]["service"] == "SSH/Telnet Honeypot"
     assert "summary" in data
-    

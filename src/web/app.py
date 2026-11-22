@@ -4,6 +4,7 @@ Oferă endpoint-uri REST pentru statistici și export JSON.
 """
 
 from fastapi import FastAPI, Response
+
 from src.storage import db
 
 app = FastAPI(
