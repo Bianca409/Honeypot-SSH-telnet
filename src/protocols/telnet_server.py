@@ -24,7 +24,7 @@ class TelnetAuthState(str, Enum):
 
 
 class TelnetHoneypotServer:
-    """Server TCP asincron pentru serviciul Telnet cu mașină de stări de autentificare."""
+    """Server TCP asincron pentru serviciul Telnet cu shell interactiv simulat."""
 
     def __init__(
         self,
@@ -82,6 +82,53 @@ class TelnetHoneypotServer:
             password=password,
             status=status,
         )
+
+    def _record_shell_command(
+        self,
+        session_id: str,
+        source_ip: str,
+        username: str,
+        command: str,
+    ) -> None:
+        """Trimite comanda rulată în shell către EventLogger dacă este configurat."""
+        if self.event_logger is None:
+            return
+        self.event_logger.log_shell_command(
+            protocol="telnet",
+            session_id=session_id,
+            source_ip=source_ip,
+            username=username,
+            command=command,
+        )
+
+    def _execute_fake_command(self, command: str) -> str:
+        """Generează răspunsuri Linux realiste pentru comenzile atacatorilor."""
+        cmd = command.strip()
+        if not cmd:
+            return ""
+        if cmd in {"ls", "ls -la", "ls -l"}:
+            return "backup.tar.gz  notes.txt  deploy.sh\r\n"
+        if cmd == "pwd":
+            return "/root\r\n"
+        if cmd == "whoami":
+            return "root\r\n"
+        if cmd == "id":
+            return "uid=0(root) gid=0(root) groups=0(root)\r\n"
+        if cmd.startswith("uname"):
+            return (
+                "Linux honeypot-srv 5.15.0-89-generic #99-Ubuntu SMP "
+                "x86_64 GNU/Linux\r\n"
+            )
+        if cmd == "cat notes.txt":
+            return "TODO: rotate db_admin password before Friday\r\n"
+        if cmd.startswith("cat "):
+            target = cmd[4:].strip()
+            return f"cat: {target}: Permission denied\r\n"
+        if cmd == "help":
+            return "GNU bash, version 5.1.16(1)-release (x86_64-pc-linux-gnu)\r\n"
+
+        binary = cmd.split()[0]
+        return f"bash: {binary}: command not found\r\n"
 
     async def _send_line(self, writer: asyncio.StreamWriter, text: str) -> None:
         writer.write(text.encode("utf-8"))
@@ -183,19 +230,35 @@ class TelnetHoneypotServer:
         source_ip: str,
         username: str,
     ) -> None:
-        """Bucla sesiunii post-autentificare (shell-ul interactiv vine în Commit 6)."""
+        """Bucla interactivă a shell-ului simulat după autentificare."""
         logger.info(
             "Sesiune Telnet autentificată (%s) pentru '%s' de la %s",
             session_id,
             username,
             source_ip,
         )
-        await self._send_line(writer, f"\r\nWelcome to Ubuntu 22.04.3 LTS\r\n{SHELL_PROMPT}")
+        await self._send_line(
+            writer, f"\r\nWelcome to Ubuntu 22.04.3 LTS\r\n{SHELL_PROMPT}"
+        )
         while True:
             cmd = await self._read_line(reader)
-            if cmd is None or cmd == "exit":
+            if cmd is None:
                 break
-            await self._send_line(writer, SHELL_PROMPT)
+
+            if cmd.strip():
+                self._record_shell_command(
+                    session_id=session_id,
+                    source_ip=source_ip,
+                    username=username,
+                    command=cmd,
+                )
+
+            if cmd.strip() in {"exit", "logout"}:
+                await self._send_line(writer, "logout\r\n")
+                break
+
+            output = self._execute_fake_command(cmd)
+            await self._send_line(writer, f"{output}{SHELL_PROMPT}")
 
     async def start(self) -> None:
         self._server = await asyncio.start_server(
