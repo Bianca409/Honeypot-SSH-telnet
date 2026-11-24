@@ -136,3 +136,96 @@ def get_recent_shell_commands(limit: int = 50) -> list[dict]:
     finally:
         if connection.is_connected():
             connection.close()
+
+
+def get_top_passwords(limit: int = 10) -> list[dict]:
+    """Returnează topul celor mai încercate parole (cerință de nota 10)."""
+    connection = get_connection()
+    if not connection:
+        return []
+
+    query = (
+        "SELECT password, COUNT(*) as count "
+        "FROM auth_attempts "
+        "GROUP BY password "
+        "ORDER BY count DESC "
+        "LIMIT %s"
+    )
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query, (limit,))
+        rows = cursor.fetchall()
+        cursor.close()
+        return rows
+    except Error as err:
+        print(f"Eroare la calculul top parole: {err}")
+        return []
+    finally:
+        if connection.is_connected():
+            connection.close()
+
+
+def get_top_ips(limit: int = 10) -> list[dict]:
+    """Returnează topul adreselor IP cele mai agresive (cerință de nota 10)."""
+    connection = get_connection()
+    if not connection:
+        return []
+
+    query = (
+        "SELECT source_ip, COUNT(*) as count "
+        "FROM auth_attempts "
+        "GROUP BY source_ip "
+        "ORDER BY count DESC "
+        "LIMIT %s"
+    )
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query, (limit,))
+        rows = cursor.fetchall()
+        cursor.close()
+        return rows
+    except Error as err:
+        print(f"Eroare la calculul top IP-uri: {err}")
+        return []
+    finally:
+        if connection.is_connected():
+            connection.close()
+
+
+def get_summary_stats() -> dict:
+    """Returnează un sumar general al activității honeypot-ului."""
+    connection = get_connection()
+    if not connection:
+        return {"total_attacks": 0, "ssh_attacks": 0, "telnet_attacks": 0, "shell_commands": 0}
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("SELECT COUNT(*) as total FROM auth_attempts")
+        total = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as total FROM auth_attempts WHERE protocol = 'SSH'")
+        ssh = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as total FROM auth_attempts WHERE protocol = 'TELNET'")
+        telnet = cursor.fetchone()["total"]
+
+        cursor.execute("SELECT COUNT(*) as total FROM shell_commands")
+        commands = cursor.fetchone()["total"]
+
+        cursor.close()
+        return {
+            "total_attacks": total,
+            "ssh_attacks": ssh,
+            "telnet_attacks": telnet,
+            "shell_commands": commands,
+        }
+    except Error as err:
+        print(f"Eroare la citirea statisticilor generale: {err}")
+        return {"total_attacks": 0, "ssh_attacks": 0, "telnet_attacks": 0, "shell_commands": 0}
+    finally:
+        if connection.is_connected():
+            connection.close()
+            
