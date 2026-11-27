@@ -68,3 +68,24 @@ def test_export_json_endpoint():
     assert "export_metadata" in data
     assert data["export_metadata"]["service"] == "SSH/Telnet Honeypot"
     assert "summary" in data
+
+
+def test_dashboard_page_renders_html():
+    mock_summary = {
+        "total_attacks": 2,
+        "ssh_attacks": 1,
+        "telnet_attacks": 1,
+        "shell_commands": 1,
+    }
+    with (
+        patch("src.storage.db.get_summary_stats", return_value=mock_summary),
+        patch("src.storage.db.get_top_passwords", return_value=[]),
+        patch("src.storage.db.get_top_ips", return_value=[]),
+        patch("src.storage.db.get_recent_auth_attempts", return_value=[]),
+        patch("src.storage.db.get_recent_shell_commands", return_value=[]),
+    ):
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "SSH &amp; Telnet Honeypot Dashboard" in response.text
