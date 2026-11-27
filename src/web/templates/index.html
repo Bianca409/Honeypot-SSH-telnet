@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SSH / Telnet Honeypot Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>SSH &amp; Telnet Honeypot Dashboard</h1>
+        <p class="subtitle">Monitorizare atacuri brute-force și sesiuni în fake shell</p>
+      </div>
+      <a class="btn-export" href="/api/export">Export JSON</a>
+    </header>
+
+    <section class="cards">
+      <div class="card">
+        <div class="card-label">Total Atacuri</div>
+        <div class="card-value">{{ summary.total_attacks }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Atacuri SSH</div>
+        <div class="card-value">{{ summary.ssh_attacks }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Atacuri Telnet</div>
+        <div class="card-value">{{ summary.telnet_attacks }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Comenzi Shell</div>
+        <div class="card-value">{{ summary.shell_commands }}</div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>Top Parole Încercate</h2>
+        {% if top_passwords %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Parolă</th>
+              <th>Încercări</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in top_passwords %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><code>{{ item.password }}</code></td>
+              <td>{{ item.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Nu există date încă.</p>
+        {% endif %}
+      </div>
+
+      <div class="panel">
+        <h2>Top IP-uri Atacatoare</h2>
+        {% if top_ips %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Adresă IP</th>
+              <th>Încercări</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in top_ips %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><code>{{ item.source_ip }}</code></td>
+              <td>{{ item.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Nu există date încă.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Ultimele Tentative de Autentificare</h2>
+      {% if recent_attempts %}
+      <table>
+        <thead>
+          <tr>
+            <th>Timp</th>
+            <th>Protocol</th>
+            <th>IP Sursă</th>
+            <th>Utilizator</th>
+            <th>Parolă</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in recent_attempts %}
+          <tr>
+            <td>{{ row.timestamp }}</td>
+            <td>
+              <span class="badge {{ 'badge-ssh' if row.protocol == 'SSH' else 'badge-telnet' }}">
+                {{ row.protocol }}
+              </span>
+            </td>
+            <td><code>{{ row.source_ip }}:{{ row.source_port }}</code></td>
+            <td><code>{{ row.username }}</code></td>
+            <td><code>{{ row.password }}</code></td>
+            <td>
+              <span class="badge {{ 'badge-accepted' if 'ACCEPT' in row.status else 'badge-rejected' }}">
+                {{ row.status }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">Nicio tentativă înregistrată.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Comenzi Rulate în Fake Shell</h2>
+      {% if recent_commands %}
+      <table>
+        <thead>
+          <tr>
+            <th>Timp</th>
+            <th>Sesiune</th>
+            <th>IP Sursă</th>
+            <th>Comandă</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cmd in recent_commands %}
+          <tr>
+            <td>{{ cmd.timestamp }}</td>
+            <td><code>{{ cmd.session_id }}</code></td>
+            <td><code>{{ cmd.source_ip }}</code></td>
+            <td><code>{{ cmd.command }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty">Nicio comandă înregistrată în shell.</p>
+      {% endif %}
+    </section>
+  </div>
+</body>
+</html>
