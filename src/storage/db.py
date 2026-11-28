@@ -83,7 +83,7 @@ def save_shell_command(session_id: str, source_ip: str, command: str) -> bool:
             connection.close()
 
 
-def get_recent_auth_attempts(limit: int = 50) -> list[dict]:
+def get_recent_auth_attempts(limit: int = 50, offset: int = 0) -> list[dict]:
     """Returnează cele mai recente tentative de autentificare din MySQL."""
     connection = get_connection()
     if not connection:
@@ -96,10 +96,14 @@ def get_recent_auth_attempts(limit: int = 50) -> list[dict]:
         "ORDER BY timestamp DESC "
         "LIMIT %s"
     )
+    params: tuple[int, ...] = (limit,)
+    if offset > 0:
+        query += " OFFSET %s"
+        params = (limit, offset)
 
     try:
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(query, (limit,))
+        cursor.execute(query, params)
         rows = cursor.fetchall()
         cursor.close()
         return rows
@@ -111,7 +115,7 @@ def get_recent_auth_attempts(limit: int = 50) -> list[dict]:
             connection.close()
 
 
-def get_recent_shell_commands(limit: int = 50) -> list[dict]:
+def get_recent_shell_commands(limit: int = 50, offset: int = 0) -> list[dict]:
     """Returnează cele mai recente comenzi tastate în shell-ul fals."""
     connection = get_connection()
     if not connection:
@@ -123,10 +127,14 @@ def get_recent_shell_commands(limit: int = 50) -> list[dict]:
         "ORDER BY timestamp DESC "
         "LIMIT %s"
     )
+    params: tuple[int, ...] = (limit,)
+    if offset > 0:
+        query += " OFFSET %s"
+        params = (limit, offset)
 
     try:
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(query, (limit,))
+        cursor.execute(query, params)
         rows = cursor.fetchall()
         cursor.close()
         return rows
