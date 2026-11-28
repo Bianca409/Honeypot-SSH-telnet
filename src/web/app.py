@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,6 +18,26 @@ app = FastAPI(
     description="API și Dashboard pentru monitorizarea atacurilor din honeypot.",
     version="1.0.0",
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Adaugă headere CSP și protecție anti-XSS/clickjacking pe toate răspunsurile."""
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'none'; "
+        "style-src 'self'; "
+        "img-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -54,30 +74,41 @@ def get_stats():
 
 
 @app.get("/api/attempts")
-def get_recent_attempts(limit: int = 50):
-    """Returnează cele mai recente tentative de autentificare captate."""
-    return {"attempts": db.get_recent_auth_attempts(limit=limit)}
+def get_recent_attempts(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Returnează cele mai recente tentative de autentificare captate (paginate)."""
+    return {"attempts": db.get_recent_auth_attempts(limit=limit, offset=offset)}
 
 
 @app.get("/api/commands")
-def get_recent_commands(limit: int = 50):
-    """Returnează comenzile rulate de atacatori în fake shell."""
-    return {"commands": db.get_recent_shell_commands(limit=limit)}
+def get_recent_commands(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Returnează comenzile rulate de atacatori în fake shell (paginate)."""
+    return {"commands": db.get_recent_shell_commands(limit=limit, offset=offset)}
 
 
 @app.get("/api/export")
-def export_json():
-    """Exportă toate logurile în format JSON."""
+def export_json(
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Exportă logurile în format JSON (cu limită și paginare)."""
     export_data = {
         "export_metadata": {
             "service": "SSH/Telnet Honeypot",
             "version": "1.0",
+            "limit": limit,
+            "offset": offset,
         },
         "summary": db.get_summary_stats(),
         "top_passwords": db.get_top_passwords(limit=20),
         "top_ips": db.get_top_ips(limit=20),
-        "recent_auth_attempts": db.get_recent_auth_attempts(limit=200),
-        "recent_shell_commands": db.get_recent_shell_commands(limit=200),
+        "recent_auth_attempts": db.get_recent_auth_attempts(limit=limit, offset=offset),
+        "recent_shell_commands": db.get_recent_shell_commands(limit=limit, offset=offset),
     }
 
     def json_serial(obj):
