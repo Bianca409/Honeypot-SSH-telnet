@@ -9,8 +9,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiem codul sursa
-COPY . .
+# Copiem codul sursa cu permisiuni pentru userul non-root
+COPY --chown=appuser:appuser . .
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Setam permisiunile pentru userul non-root
 USER appuser
